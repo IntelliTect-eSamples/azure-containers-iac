@@ -16,6 +16,11 @@ terraform {
       source  = "hashicorp/azuread"
       version = "~> 2.47.0"
     }
+
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.4.0"
+    }
   }
 
   required_version = ">= 1.1.0"
@@ -31,4 +36,10 @@ provider "azurerm" {
     }
   }
 }
+
+provider "docker" {
+  host = "tcp://localhost:2375/"
+}
+
+
 

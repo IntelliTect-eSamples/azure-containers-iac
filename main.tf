@@ -43,6 +43,7 @@ locals {
       charset   = "utf8"
       collation = "utf8_unicode_ci"
     }  
+  
   ]
 
   tags = {
@@ -50,6 +51,19 @@ locals {
     project     = var.project_name
     cost_center = "IT"
   }
+
+  webapps = [
+    {
+      name     = "webapp1"
+      location = "eastus"
+    },
+    {
+      name     = "webapp2"
+      location = "westus"
+    }
+  ]
+  container_app_path = "c:/dev/webapp"
+  app_name = "ktsite1"
 }
 
 module "mysql_flexible_server" {
@@ -77,6 +91,67 @@ resource "azurerm_container_registry" "main" {
 
   tags = local.tags
 }
+
+# publish an image to the container registry
+resource "null_resource" "publish_image" {
+
+  provisioner "local-exec" {
+    command = <<EOT
+      az acr login --name ${azurerm_container_registry.main.name}
+      docker build --platform=linux/amd64 -t ${azurerm_container_registry.main.login_server}/${local.app_name}:latest ${local.container_app_path}/.
+      docker push ${azurerm_container_registry.main.login_server}/${local.app_name}:latest
+    EOT
+  }
+
+  depends_on = [azurerm_container_registry.main]
+}
+
+
+# image = "mcr.microsoft.com/azuredocs/aci-helloworld"
+# create an azure container instance
+resource "azurerm_container_group" "main" {
+  name                = "${local.name_nodash}-aci"
+  location            = var.region_name
+  resource_group_name = var.resource_group_name
+  os_type             = "Linux"
+
+  image_registry_credential {
+    server   = azurerm_container_registry.main.login_server
+    username = azurerm_container_registry.main.admin_username
+    password = azurerm_container_registry.main.admin_password
+  }
+
+  container {
+    name   = "${local.name_nodash}-container"
+    image  = "${azurerm_container_registry.main.login_server}/${local.app_name}:latest"
+    cpu    = "0.5"
+    memory = "1.5"
+
+
+    ports {
+      port     = 80
+      protocol = "TCP"
+    }
+
+    environment_variables = {
+      MYSQL_HOST     = module.mysql_flexible_server.connection_string
+      MYSQL_USER     = var.mysql_administrator_login
+      MYSQL_PASSWORD = var.mysql_administrator_password
+      MYSQL_DATABASE = local.databases[0].name
+    }
+  }
+
+  tags = local.tags
+}
+
+# create an azure container app environment
+
+# create an azure container app service
+
+# storage account
+
+# azure front door
+
 
 
 

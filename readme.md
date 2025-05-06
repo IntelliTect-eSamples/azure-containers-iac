@@ -4,9 +4,18 @@ This repository contains the Terraform configuration files for managing the infr
 
 ## Repository Structure
 
-root module
+base
+app
 modules
 examples
+
+### Base
+Provisions the following resources that can be used by all accounts
+
+- Storage account
+- Azure Container Registry
+
+Does not use "backend" state.
 
 
 ## Key Features
@@ -23,6 +32,13 @@ examples
 - [Terraform](https://www.terraform.io/) installed on your local machine.
 - Azure CLI installed and authenticated.
 - Access to an Azure subscription.
+
+### Container Images
+In order to get around the chicken/egg problem of configuring Azure services dependent on container images, we assume that the local environment has access to initial container images.
+
+Images can either be updated with Terraform in the future or by pushing images directly to Azure Container registry
+
+Beware that re-running Terraform may cause your current image to be overwritten
 
 ### Usage
 
