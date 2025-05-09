@@ -54,18 +54,44 @@ locals {
 
   webapps = [
     {
-      name     = "webapp1"
-      location = "eastus"
+      app_name = "ktsite1"
+      container_app_path = "c:/dev/webapp"
+      
     },
     {
-      name     = "webapp2"
-      location = "westus"
+      app_name = "ktsite2"
+      container_app_path = "c:/dev/webapp"
     }
   ]
-  container_app_path = "c:/dev/webapp"
-  app_name = "ktsite1"
+
 }
 
+
+# create a container registry
+resource "azurerm_container_registry" "main" {
+  name                = "${local.name_nodash}acr"
+  resource_group_name = var.resource_group_name
+  location            = var.region_name
+  sku                 = "Standard"
+  admin_enabled       = true
+
+  tags = local.tags
+}
+
+# create log analytics workspace
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "${local.name_nodash}-law"
+  location            = var.region_name
+  resource_group_name = var.resource_group_name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = local.tags
+}
+
+### per app
+
+# create a mysql flexible server
 module "mysql_flexible_server" {
   source              = "./modules/mysql-flexible-server"
   name                = local.mysql_server_fullname
@@ -81,16 +107,6 @@ module "mysql_flexible_server" {
 }
 
 
-# create a container registry
-resource "azurerm_container_registry" "main" {
-  name                = "${local.name_nodash}acr"
-  resource_group_name = var.resource_group_name
-  location            = var.region_name
-  sku                 = "Standard"
-  admin_enabled       = true
-
-  tags = local.tags
-}
 
 # publish an image to the container registry
 resource "null_resource" "publish_image" {
@@ -139,18 +155,41 @@ resource "azurerm_container_group" "main" {
       MYSQL_PASSWORD = var.mysql_administrator_password
       MYSQL_DATABASE = local.databases[0].name
     }
+
+
+  }
+
+  diagnostics {
+    log_analytics {
+      workspace_id = azurerm_log_analytics_workspace.main.workspace_id
+      workspace_key = azurerm_log_analytics_workspace.main.primary_shared_key
+    }
   }
 
   tags = local.tags
 }
 
+
+
 # create an azure container app environment
 
 # create an azure container app service
 
-# storage account
+# create a storage account
+resource "azurerm_storage_account" "main" {
+  name                     = "${local.name_nodash}sa"
+  resource_group_name      = var.resource_group_name
+  location                 = var.region_name
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  tags = local.tags
+}
+
 
 # azure front door
+
+
 
 
 
