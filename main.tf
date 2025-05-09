@@ -1,4 +1,3 @@
-
 locals {
   project     = var.project_name
   environment = var.environment_name
@@ -56,11 +55,13 @@ locals {
     {
       app_name = "ktsite1"
       container_app_path = "c:/dev/webapp"
+      db_name = "mysqldb1"
       
     },
     {
       app_name = "ktsite2"
       container_app_path = "c:/dev/webapp"
+      db_name = "mysqldb2"
     }
   ]
 
@@ -106,74 +107,29 @@ module "mysql_flexible_server" {
   databases           = local.databases
 }
 
+# Deploy container_instance for each entry in local.webapps
+module "container_instances" {
+  source = "./modules/container-instance"
 
+  for_each = { for app in local.webapps : app.app_name => app }
 
-# publish an image to the container registry
-resource "null_resource" "publish_image" {
-
-  provisioner "local-exec" {
-    command = <<EOT
-      az acr login --name ${azurerm_container_registry.main.name}
-      docker build --platform=linux/amd64 -t ${azurerm_container_registry.main.login_server}/${local.app_name}:latest ${local.container_app_path}/.
-      docker push ${azurerm_container_registry.main.login_server}/${local.app_name}:latest
-    EOT
-  }
-
-  depends_on = [azurerm_container_registry.main]
+  container_registry_name     = azurerm_container_registry.main.name
+  container_registry_server   = azurerm_container_registry.main.login_server
+  container_registry_username = azurerm_container_registry.main.admin_username
+  container_registry_password = azurerm_container_registry.main.admin_password
+  app_name                    = each.value.app_name
+  container_app_path          = each.value.container_app_path
+  resource_group_name         = var.resource_group_name
+  region_name                 = var.region_name
+  log_analytics_workspace_id  = azurerm_log_analytics_workspace.main.workspace_id
+  log_analytics_workspace_key = azurerm_log_analytics_workspace.main.primary_shared_key
+  mysql_connection_string     = module.mysql_flexible_server.connection_string
+  mysql_user                  = var.mysql_administrator_login
+  mysql_password              = var.mysql_administrator_password
+  mysql_database              = each.value.db_name
+  tags                        = local.tags
 }
 
-
-# image = "mcr.microsoft.com/azuredocs/aci-helloworld"
-# create an azure container instance
-resource "azurerm_container_group" "main" {
-  name                = "${local.name_nodash}-aci"
-  location            = var.region_name
-  resource_group_name = var.resource_group_name
-  os_type             = "Linux"
-
-  image_registry_credential {
-    server   = azurerm_container_registry.main.login_server
-    username = azurerm_container_registry.main.admin_username
-    password = azurerm_container_registry.main.admin_password
-  }
-
-  container {
-    name   = "${local.name_nodash}-container"
-    image  = "${azurerm_container_registry.main.login_server}/${local.app_name}:latest"
-    cpu    = "0.5"
-    memory = "1.5"
-
-
-    ports {
-      port     = 80
-      protocol = "TCP"
-    }
-
-    environment_variables = {
-      MYSQL_HOST     = module.mysql_flexible_server.connection_string
-      MYSQL_USER     = var.mysql_administrator_login
-      MYSQL_PASSWORD = var.mysql_administrator_password
-      MYSQL_DATABASE = local.databases[0].name
-    }
-
-
-  }
-
-  diagnostics {
-    log_analytics {
-      workspace_id = azurerm_log_analytics_workspace.main.workspace_id
-      workspace_key = azurerm_log_analytics_workspace.main.primary_shared_key
-    }
-  }
-
-  tags = local.tags
-}
-
-
-
-# create an azure container app environment
-
-# create an azure container app service
 
 # create a storage account
 resource "azurerm_storage_account" "main" {
@@ -184,6 +140,12 @@ resource "azurerm_storage_account" "main" {
   account_replication_type = "LRS"
 
   tags = local.tags
+}
+
+resource "azurerm_storage_container" "container1" {
+  name                  = "tfstate"
+  storage_account_id    = azurerm_storage_account.main.id
+  container_access_type = "private"
 }
 
 
