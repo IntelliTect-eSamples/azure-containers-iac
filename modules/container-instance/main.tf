@@ -2,7 +2,6 @@ resource "null_resource" "publish_image" {
   triggers = {
       registry_name = var.container_registry_name
       app_name = var.app_name
-      appdir_sha1 = sha1(join("", [for f in fileset(var.container_app_path, "*") : filesha1(f)]))
   }
 
   provisioner "local-exec" {

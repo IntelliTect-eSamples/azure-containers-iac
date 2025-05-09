@@ -41,6 +41,11 @@ locals {
       name      = "mysqldb2"
       charset   = "utf8"
       collation = "utf8_unicode_ci"
+    },
+    {
+      name      = "mysqldb3"
+      charset   = "utf8"
+      collation = "utf8_unicode_ci"
     }  
   
   ]
@@ -54,17 +59,21 @@ locals {
   webapps = [
     {
       app_name = "ktsite1"
-      container_app_path = "c:/dev/webapp"
+      app_path = "c:/dev/webapp"
       db_name = "mysqldb1"
       
     },
     {
       app_name = "ktsite2"
-      container_app_path = "c:/dev/webapp"
+      app_path = "c:/dev/webapp"
       db_name = "mysqldb2"
     }
   ]
 
+  container_app  = {
+    name = "ktsite3"
+    app_path = "c:/dev/webapp"
+  }
 }
 
 
@@ -107,6 +116,23 @@ module "mysql_flexible_server" {
   databases           = local.databases
 }
 
+
+resource "null_resource" "publish_image" {
+  triggers = {
+      registry_name = azurerm_container_registry.main.name
+      app_name = local.container_app.name
+
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      az acr login --name ${azurerm_container_registry.main.name}
+      docker build --platform=linux/amd64 -t ${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest ${local.container_app.app_path}/.
+      docker push ${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest
+    EOT
+  }
+}
+
 # Deploy container_instance for each entry in local.webapps
 module "container_instances" {
   source = "./modules/container-instance"
@@ -118,7 +144,7 @@ module "container_instances" {
   container_registry_username = azurerm_container_registry.main.admin_username
   container_registry_password = azurerm_container_registry.main.admin_password
   app_name                    = each.value.app_name
-  container_app_path          = each.value.container_app_path
+  container_app_path          = each.value.app_path
   resource_group_name         = var.resource_group_name
   region_name                 = var.region_name
   log_analytics_workspace_id  = azurerm_log_analytics_workspace.main.workspace_id
@@ -146,6 +172,61 @@ resource "azurerm_storage_container" "container1" {
   name                  = "tfstate"
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
+}
+
+# create a container app environment
+resource "azurerm_container_app_environment" "main" {
+  name                = "${local.name_nodash}-app-env"
+  resource_group_name = var.resource_group_name
+  location            = var.region_name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+
+  tags = local.tags
+}
+
+# create a container app
+resource "azurerm_container_app" "main" {
+  name                = "${local.name_nodash}-containerapp"
+  resource_group_name = var.resource_group_name
+  container_app_environment_id = azurerm_container_app_environment.main.id
+
+  revision_mode = "Single"
+
+  registry {
+    server   = azurerm_container_registry.main.login_server
+    username = azurerm_container_registry.main.admin_username
+    password_secret_name = azurerm_container_registry.main.admin_password
+  }
+
+  template {
+    container {
+      name   = "ktsite1"
+      image  = "${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest"
+      cpu    = "0.5"
+      memory = "1.0Gi"
+
+      env {
+        name  = "MYSQL_HOST"
+        value = module.mysql_flexible_server.connection_string
+      }
+      env {
+        name  = "MYSQL_USER"
+        value = var.mysql_administrator_login
+      }
+      env {
+        name  = "MYSQL_PASSWORD"
+        value = var.mysql_administrator_password
+      }
+      env {
+        name  = "MYSQL_DATABASE"
+        value = "mysqldb3"
+      }
+    }
+
+  }
+
+  tags = local.tags
 }
 
 

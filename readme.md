@@ -29,6 +29,20 @@ Does not use "backend" state.
 
 ### Prerequisites
 
+Resource Providers for Container Apps
+
+Microsoft.App
+*Kubernets*
+
+
+Subscription and resource gruop
+Provision base
+publish initial containers
+provision databases, container instances and apps
+
+As you add dbs, instances and apps, first add the continer image to the ACR (Azure Container Registry), update the Terraform, then plan and apply
+
+
 - [Terraform](https://www.terraform.io/) installed on your local machine.
 - Azure CLI installed and authenticated.
 - Access to an Azure subscription.

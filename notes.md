@@ -13,11 +13,12 @@
 
 To dos
 - [x] push an image
+- [x] log analytics
+
 - [ ] managed identity
-- [ ] option container deploy?
+- [ ] optional container deploy/chicken v egg
 - [ ] backend
-- [ ] refactoring and chicken/egg
-- [ ] log analytics
+
 
 References
 https://www.mytechramblings.com/posts/how-to-push-a-container-image-into-acr-using-terraform/
