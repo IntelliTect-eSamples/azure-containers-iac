@@ -42,6 +42,7 @@ resource "azurerm_container_group" "main" {
       MYSQL_PASSWORD = var.mysql_password
       MYSQL_DATABASE = var.mysql_database
     }
+
   }
 
   diagnostics {

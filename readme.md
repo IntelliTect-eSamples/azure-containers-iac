@@ -1,21 +1,19 @@
-# KTea Websites Infrastructure as Code (IaC)
+# KTEA Websites Infrastructure as Code (IaC)
 
 This repository contains the Terraform configuration files for managing the infrastructure of KTea websites. It leverages Azure resources and follows best practices for Infrastructure as Code (IaC) to ensure consistency, scalability, and maintainability.
 
 ## Repository Structure
 
+root folder
 base
-app
 modules
 examples
 
 ### Base
-Provisions the following resources that can be used by all accounts
+Provisions the following resources that can be used by all accounts. The base configuration does not use Terraform backend state.
 
 - Storage account
-- Azure Container Registry
-
-Does not use "backend" state.
+- Azure Container Registry?
 
 
 ## Key Features
@@ -26,28 +24,46 @@ Does not use "backend" state.
 - **Azure Best Practices**: Implements Azure best practices for resource management and security.
 
 ## Getting Started
+1. Review pre-requisites
+1. Run the base terraform to provision backend state
+2. Build initial versions of site containers
+3. Update main.tf and tfvars as needed for your environment
 
 ### Prerequisites
-
-Resource Providers for Container Apps
-
-Microsoft.App
-*Kubernets*
-
-
-Subscription and resource gruop
-Provision base
-publish initial containers
-provision databases, container instances and apps
-
-As you add dbs, instances and apps, first add the continer image to the ACR (Azure Container Registry), update the Terraform, then plan and apply
-
 
 - [Terraform](https://www.terraform.io/) installed on your local machine.
 - Azure CLI installed and authenticated.
 - Access to an Azure subscription.
 
+1. Azure Subscription
+    - Identify existing or create new Azure subscription
+    - Note Entra ID tenant associted with the subscription
+1. Entra ID Groups
+    - Create groups for each environment (staging, prod) in the subscription tentant
+    - Add users responsible for managing resources in the environment to the group
+    - Add the group as Contributor to the Resource Group
+1. Resource Group for each environment
+    - Resource groups are manually provisioned
+    -  
+1. Resource Provider(s) for Container Apps
+    - Microsoft.App
+    - *Kubernetes* may be required as well.
+
+### Base Configuration
+Provision base Terraform configuration from the base folder.
+
+1. Review variable settings
+1. Terraform init
+1. Terrafrom plan
+1. Terraform apply
+
 ### Container Images
+
+publish initial containers
+provision databases, container instances and apps
+
+As you add dbs, instances and apps, first add the continer image to the ACR (Azure Container Registry), update the Terraform, then plan and apply
+
 In order to get around the chicken/egg problem of configuring Azure services dependent on container images, we assume that the local environment has access to initial container images.
 
 Images can either be updated with Terraform in the future or by pushing images directly to Azure Container registry

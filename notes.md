@@ -1,4 +1,4 @@
-- review general flow
+- Review general flow
 - Assume 1 Server with multiple databases
 - Storage account(s)
     - 1 with containers
@@ -14,14 +14,10 @@
 To dos
 - [x] push an image
 - [x] log analytics
-
-- [ ] managed identity
-- [ ] optional container deploy/chicken v egg
 - [ ] backend
 
-
-References
-https://www.mytechramblings.com/posts/how-to-push-a-container-image-into-acr-using-terraform/
+- [ ] optional container deploy/chicken v egg
+- [ ] managed identity
 
 
 ```

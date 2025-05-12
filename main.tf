@@ -76,6 +76,13 @@ locals {
   }
 }
 
+resource "azurerm_user_assigned_identity" "main" {
+  resource_group_name = var.resource_group_name
+  location            = var.region_name
+
+  name = "registry-uai"
+}
+
 
 # create a container registry
 resource "azurerm_container_registry" "main" {
@@ -85,8 +92,14 @@ resource "azurerm_container_registry" "main" {
   sku                 = "Standard"
   admin_enabled       = true
 
+  identity {
+    type = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.main.id]
+  }
+
   tags = local.tags
 }
+
 
 # create log analytics workspace
 resource "azurerm_log_analytics_workspace" "main" {
@@ -185,6 +198,8 @@ resource "azurerm_container_app_environment" "main" {
   tags = local.tags
 }
 
+
+
 # create a container app
 resource "azurerm_container_app" "main" {
   name                = "${local.name_nodash}-containerapp"
@@ -193,10 +208,26 @@ resource "azurerm_container_app" "main" {
 
   revision_mode = "Single"
 
+  ingress {
+    external_enabled = true
+    allow_insecure_connections = true
+    target_port = 80
+    transport = "auto"
+    traffic_weight {
+      latest_revision = true
+      percentage = 100
+    }
+  }
+
   registry {
     server   = azurerm_container_registry.main.login_server
-    username = azurerm_container_registry.main.admin_username
-    password_secret_name = azurerm_container_registry.main.admin_password
+    username = azurerm_container_registry.main.name
+    password_secret_name = "admin-password"
+  }
+
+  secret {
+    name = "admin-password"
+    value = azurerm_container_registry.main.admin_password
   }
 
   template {
@@ -230,7 +261,56 @@ resource "azurerm_container_app" "main" {
 }
 
 
-# azure front door
+# create azure front door and link to container app
+resource "azurerm_cdn_frontdoor_profile" "main" {
+  name                = "main-profile"
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "Standard_AzureFrontDoor"
+}
+
+resource "azurerm_cdn_frontdoor_endpoint" "example" {
+  name                     = "example-endpoint"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.example.id
+
+  tags = {
+    ENV = "example"
+  }
+}
+
+
+
+resource "azurerm_front_door" "main" {
+  name                = "${local.name_nodash}-frontdoor"
+  resource_group_name = var.resource_group_name
+  location            = var.region_name
+
+  frontend_endpoint {
+    name      = "frontend"
+    host_name = "${local.name}.azurefd.net"
+  }
+
+  backend_pool {
+    name = "backendpool"
+
+    backend {
+      host_header = "${azurerm_container_app.main.name}.azurefd.net"
+      address    = "${azurerm_container_app.main.name}.azurefd.net"
+      http_port  = 80
+      https_port = 443
+    }
+  }
+
+  routing_rule {
+    name               = "routingrule"
+    accepted_protocols = ["Http", "Https"]
+    patterns_to_match  = ["/*"]
+    frontend_endpoints = [azurerm_front_door.frontend_endpoint.name]
+    backend_pool_id    = azurerm_front_door.backend_pool.id
+  }
+
+  tags = local.tags
+}
+
 
 
 
