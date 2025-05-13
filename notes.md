@@ -17,7 +17,7 @@ To dos
 - [ ] backend
 
 - [ ] optional container deploy/chicken v egg
-- [ ] managed identity
+
 
 
 ```

@@ -131,6 +131,8 @@ module "mysql_flexible_server" {
 
 
 resource "null_resource" "publish_image" {
+  # for each app in local.webapps
+
   triggers = {
       registry_name = azurerm_container_registry.main.name
       app_name = local.container_app.name
@@ -181,8 +183,8 @@ resource "azurerm_storage_account" "main" {
   tags = local.tags
 }
 
-resource "azurerm_storage_container" "container1" {
-  name                  = "tfstate"
+resource "azurerm_storage_container" "craft" {
+  name                  = "craftcms"
   storage_account_id    = azurerm_storage_account.main.id
   container_access_type = "private"
 }
@@ -197,8 +199,6 @@ resource "azurerm_container_app_environment" "main" {
 
   tags = local.tags
 }
-
-
 
 # create a container app
 resource "azurerm_container_app" "main" {
@@ -237,22 +237,7 @@ resource "azurerm_container_app" "main" {
       cpu    = "0.5"
       memory = "1.0Gi"
 
-      env {
-        name  = "MYSQL_HOST"
-        value = module.mysql_flexible_server.connection_string
-      }
-      env {
-        name  = "MYSQL_USER"
-        value = var.mysql_administrator_login
-      }
-      env {
-        name  = "MYSQL_PASSWORD"
-        value = var.mysql_administrator_password
-      }
-      env {
-        name  = "MYSQL_DATABASE"
-        value = "mysqldb3"
-      }
+
     }
 
   }
@@ -263,52 +248,48 @@ resource "azurerm_container_app" "main" {
 
 # create azure front door and link to container app
 resource "azurerm_cdn_frontdoor_profile" "main" {
-  name                = "main-profile"
-  resource_group_name = azurerm_resource_group.main.name
-  sku_name            = "Standard_AzureFrontDoor"
-}
-
-resource "azurerm_cdn_frontdoor_endpoint" "example" {
-  name                     = "example-endpoint"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.example.id
-
-  tags = {
-    ENV = "example"
-  }
-}
-
-
-
-resource "azurerm_front_door" "main" {
-  name                = "${local.name_nodash}-frontdoor"
+  name                = "${var.project_name}-profile"
   resource_group_name = var.resource_group_name
-  location            = var.region_name
+  sku_name            = "Standard_AzureFrontDoor"
+  tags = local.tags
+}
 
-  frontend_endpoint {
-    name      = "frontend"
-    host_name = "${local.name}.azurefd.net"
-  }
-
-  backend_pool {
-    name = "backendpool"
-
-    backend {
-      host_header = "${azurerm_container_app.main.name}.azurefd.net"
-      address    = "${azurerm_container_app.main.name}.azurefd.net"
-      http_port  = 80
-      https_port = 443
-    }
-  }
-
-  routing_rule {
-    name               = "routingrule"
-    accepted_protocols = ["Http", "Https"]
-    patterns_to_match  = ["/*"]
-    frontend_endpoints = [azurerm_front_door.frontend_endpoint.name]
-    backend_pool_id    = azurerm_front_door.backend_pool.id
-  }
+resource "azurerm_cdn_frontdoor_endpoint" "main" {
+  name                     = "${local.container_app.name}-endpoint"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
 
   tags = local.tags
+}
+
+resource azurerm_cdn_frontdoor_origin_group "main" {
+  name                     = "${local.container_app.name}-origin-group"
+  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  load_balancing { }
+}
+
+resource "azurerm_cdn_frontdoor_origin" "main" {
+  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.main.id
+  certificate_name_check_enabled = true
+  enabled                        = true
+  host_name                      = azurerm_container_app.main.latest_revision_fqdn
+  http_port                      = 80
+  https_port                     = 443
+  name                           = "default-origin"
+  origin_host_header             = azurerm_container_app.main.latest_revision_fqdn
+  priority                       = 1
+  weight                         = 1000
+
+}
+
+resource "azurerm_cdn_frontdoor_route" "main" {
+  name                     = "${local.container_app.name}-route"
+  cdn_frontdoor_endpoint_id = azurerm_cdn_frontdoor_endpoint.main.id
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.main.id
+  cdn_frontdoor_origin_ids = [azurerm_cdn_frontdoor_origin.main.id]
+
+  supported_protocols = ["Http", "Https"]
+  patterns_to_match  = ["/*"]
+
 }
 
 
