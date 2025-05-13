@@ -12,9 +12,7 @@ locals {
     project     = var.project_name
     cost_center = "IT"
   }
-
 }
-
 
 # create a storage account
 resource "azurerm_storage_account" "main" {

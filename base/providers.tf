@@ -1,12 +1,7 @@
 # Configure the Azure provider
 terraform {
 
-  backend "azurerm" {
-    resource_group_name  = var.resource_group_name
-    storage_account_name = azurerm_storage_account.main.name
-    container_name       = azurerm_storage_container.tfstate.name
-    key                  = "terraform.tfstate"
-  }
+  backend local {}
 
   required_providers {
     azurerm = {
