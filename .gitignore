@@ -34,4 +34,6 @@ terraform.rc
 
 # Ignore .config files
 *.config
+*.tfconfig
+
 
