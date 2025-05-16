@@ -8,7 +8,7 @@ locals {
   name_nodash = replace(local.name, "-", "")
 
   tags = {
-    environment = var.environment_name
+    environment = local.environment
     project     = var.project_name
     cost_center = "IT"
   }

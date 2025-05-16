@@ -245,53 +245,14 @@ resource "azurerm_container_app" "main" {
   tags = local.tags
 }
 
-
 # create azure front door and link to container app
-resource "azurerm_cdn_frontdoor_profile" "main" {
-  name                = "${var.project_name}-profile"
-  resource_group_name = var.resource_group_name
-  sku_name            = "Standard_AzureFrontDoor"
-  tags = local.tags
+module "cdn_frontdoor" {
+  source                = "./modules/cdn_frontdoor"
+  app_name    = local.container_app.name
+  app_fqdn    = azurerm_container_app.main.latest_revision_fqdn
+  resource_group_name   = var.resource_group_name
+  tags                  = local.tags
 }
-
-resource "azurerm_cdn_frontdoor_endpoint" "main" {
-  name                     = "${local.container_app.name}-endpoint"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
-
-  tags = local.tags
-}
-
-resource azurerm_cdn_frontdoor_origin_group "main" {
-  name                     = "${local.container_app.name}-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
-  load_balancing { }
-}
-
-resource "azurerm_cdn_frontdoor_origin" "main" {
-  cdn_frontdoor_origin_group_id  = azurerm_cdn_frontdoor_origin_group.main.id
-  certificate_name_check_enabled = true
-  enabled                        = true
-  host_name                      = azurerm_container_app.main.latest_revision_fqdn
-  http_port                      = 80
-  https_port                     = 443
-  name                           = "default-origin"
-  origin_host_header             = azurerm_container_app.main.latest_revision_fqdn
-  priority                       = 1
-  weight                         = 1000
-
-}
-
-resource "azurerm_cdn_frontdoor_route" "main" {
-  name                     = "${local.container_app.name}-route"
-  cdn_frontdoor_endpoint_id = azurerm_cdn_frontdoor_endpoint.main.id
-  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.main.id
-  cdn_frontdoor_origin_ids = [azurerm_cdn_frontdoor_origin.main.id]
-
-  supported_protocols = ["Http", "Https"]
-  patterns_to_match  = ["/*"]
-
-}
-
 
 
 
