@@ -1,18 +1,3 @@
-resource "null_resource" "publish_image" {
-  triggers = {
-      registry_name = var.container_registry_name
-      app_name = var.app_name
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-      az acr login --name ${var.container_registry_name}
-      docker build --platform=linux/amd64 -t ${var.container_registry_server}/${var.app_name}:latest ${var.container_app_path}/.
-      docker push ${var.container_registry_server}/${var.app_name}:latest
-    EOT
-  }
-}
-
 resource "azurerm_container_group" "main" {
   name                = "${var.app_name}-aci"
   location            = var.region_name
