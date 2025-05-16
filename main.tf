@@ -130,26 +130,8 @@ module "mysql_flexible_server" {
 }
 
 
-resource "null_resource" "publish_image" {
-  # for each app in local.webapps
-
-  triggers = {
-      registry_name = azurerm_container_registry.main.name
-      app_name = local.container_app.name
-
-  }
-
-  provisioner "local-exec" {
-    command = <<EOT
-      az acr login --name ${azurerm_container_registry.main.name}
-      docker build --platform=linux/amd64 -t ${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest ${local.container_app.app_path}/.
-      docker push ${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest
-    EOT
-  }
-}
-
 # Deploy container_instance for each entry in local.webapps
-module "container_instances" {
+module "container_instance" {
   source = "./modules/container-instance"
 
   for_each = { for app in local.webapps : app.app_name => app }
@@ -232,12 +214,10 @@ resource "azurerm_container_app" "main" {
 
   template {
     container {
-      name   = "ktsite1"
+      name   = local.container_app.name
       image  = "${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest"
       cpu    = "0.5"
       memory = "1.0Gi"
-
-
     }
 
   }
@@ -246,8 +226,8 @@ resource "azurerm_container_app" "main" {
 }
 
 # create azure front door and link to container app
-module "cdn_frontdoor" {
-  source                = "./modules/cdn_frontdoor"
+module "cdn_frontdoor_containerapp" {
+  source      = "./modules/cdn_frontdoor"
   app_name    = local.container_app.name
   app_fqdn    = azurerm_container_app.main.latest_revision_fqdn
   resource_group_name   = var.resource_group_name
@@ -255,7 +235,15 @@ module "cdn_frontdoor" {
 }
 
 
+module "cdn_frontdoor_webapp" {
+  for_each = module.container_instance
 
+  source      = "./modules/cdn_frontdoor"
+  app_name    = each.value.container_group_name
+  app_fqdn    = each.value.container_group_fqdn
+  resource_group_name   = var.resource_group_name
+  tags                  = local.tags
+}
 
 
 

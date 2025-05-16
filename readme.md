@@ -142,13 +142,6 @@ The outputs of the Terraform configuration include:
 ## Notes
 
 - Sensitive data such as passwords are excluded from version control using `.gitignore`.
-- The repository uses a local backend for storing the Terraform state file.
 
-## License
+## Container Instance Module
 
-This project is licensed under the [Mozilla Public License Version 2.0](.terraform/providers/registry.terraform.io/hashicorp/azurerm/4.27.0/windows_amd64/LICENSE.txt).
-
-## Contributing
-
-Contributions are welcome! Please submit a pull request or open an issue for any improvements or bug fixes.
-```
