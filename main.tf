@@ -171,27 +171,12 @@ resource "azurerm_storage_container" "craft" {
   container_access_type = "private"
 }
 
-# create an azure file share for container app storage
-resource "azurerm_storage_share" "containerapp" {
-  name                 = "containerapp-files"
-  storage_account_name = azurerm_storage_account.main.name
-  quota                = 5
-}
-
 # create a container app environment
 resource "azurerm_container_app_environment" "main" {
   name                       = "${local.name_nodash}-app-env"
   resource_group_name        = var.resource_group_name
   location                   = var.region_name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
-
-  storage {
-    name         = "azurefiles"
-    account_name = azurerm_storage_account.main.name
-    account_key  = azurerm_storage_account.main.primary_access_key
-    share_name   = azurerm_storage_share.containerapp.name
-    access_mode  = "ReadWrite"
-  }
 
   tags = local.tags
 }
@@ -232,11 +217,6 @@ resource "azurerm_container_app" "main" {
       image  = "${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest"
       cpu    = "0.5"
       memory = "1.0Gi"
-
-      volume_mounts {
-        name = "azurefiles"
-        path = "/mnt/storage"
-      }
     }
 
   }
