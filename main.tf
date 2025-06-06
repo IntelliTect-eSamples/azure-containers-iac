@@ -218,8 +218,25 @@ resource "azurerm_container_app" "main" {
       image  = "${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest"
       cpu    = "0.5"
       memory = "1.0Gi"
+
+      volume_mounts {
+        name = "azure-files-volume"
+        mount_path = var.container_mount_path
+      }
     }
 
+    volume {
+      name = "azure-files-volume"
+      storage_type = "AzureFile"
+      storage_name = "azure-files-storage"
+    }
+  }
+
+  storage {
+    name = "azure-files-storage"
+    storage_account_name = azurerm_storage_account.main.name
+    storage_account_key = azurerm_storage_account.main.primary_access_key
+    share_name = var.storage_share_name
   }
 
   tags = local.tags

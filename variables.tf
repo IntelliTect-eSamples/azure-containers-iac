@@ -52,3 +52,15 @@ variable "subscription_id" {
   description = "The Azure subscription ID."
   type        = string
 }
+
+variable "storage_share_name" {
+  description = "The name of the Azure Files share."
+  type        = string
+  default     = "app-files"
+}
+
+variable "container_mount_path" {
+  description = "The path where the Azure Files share will be mounted in the container."
+  type        = string
+  default     = "/mnt/files"
+}
