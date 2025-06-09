@@ -174,7 +174,7 @@ resource "azurerm_storage_container" "craft" {
 # create an azure file share for container app storage
 resource "azurerm_storage_share" "containerapp" {
   name                 = "containerapp-files"
-  storage_account_name = azurerm_storage_account.main.name
+  storage_account_id = azurerm_storage_account.main.id  
   quota                = 5
 }
 
@@ -193,7 +193,7 @@ resource "azurerm_container_app_environment_storage" "main" {
   name                         = "azurefiles"
   container_app_environment_id = azurerm_container_app_environment.main.id
   account_name                 = azurerm_storage_account.main.name
-  account_key                  = azurerm_storage_account.main.primary_access_key
+  access_key                   = azurerm_storage_account.main.primary_access_key
   share_name                   = azurerm_storage_share.containerapp.name
   access_mode                  = "ReadWrite"
 }
@@ -236,13 +236,13 @@ resource "azurerm_container_app" "main" {
       memory = "1.0Gi"
 
       volume_mounts {
-        name = "azurefiles"
+        name = "appfiles"
         path = "/mnt/storage"
       }
     }
 
     volume {
-      name         = "azurefiles"
+      name         = "appfiles"
       storage_name = azurerm_container_app_environment_storage.main.name
       storage_type = "AzureFile"
     }
