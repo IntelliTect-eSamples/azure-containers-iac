@@ -1,20 +1,13 @@
 
-resource "azurerm_cdn_frontdoor_profile" "main" {
-  name                = "${var.app_name}-profile"
-  resource_group_name = var.resource_group_name
-  sku_name            = "Standard_AzureFrontDoor"
-  tags                = var.tags
-}
-
 resource "azurerm_cdn_frontdoor_endpoint" "main" {
   name                     = "${var.app_name}-endpoint"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  cdn_frontdoor_profile_id = var.frontdoor_profile_id
   tags                     = var.tags
 }
 
 resource "azurerm_cdn_frontdoor_origin_group" "main" {
   name                     = "${var.app_name}-origin-group"
-  cdn_frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
+  cdn_frontdoor_profile_id = var.frontdoor_profile_id
   load_balancing {}
 }
 

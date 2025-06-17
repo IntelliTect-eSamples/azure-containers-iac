@@ -225,26 +225,34 @@ resource "azurerm_container_app" "main" {
   tags = local.tags
 }
 
+
+resource "azurerm_cdn_frontdoor_profile" "main" {
+  name                = "${var.project_name}-frontdoor"
+  resource_group_name = var.resource_group_name
+  sku_name            = "Standard_AzureFrontDoor"
+  tags                = local.tags
+}
+
 # create azure front door and link to container app
 module "cdn_frontdoor_containerapp" {
   source      = "./modules/cdn_frontdoor"
+  frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
   app_name    = local.container_app.name
   app_fqdn    = azurerm_container_app.main.latest_revision_fqdn
   resource_group_name   = var.resource_group_name
   tags                  = local.tags
 }
 
-
 module "cdn_frontdoor_webapp" {
   for_each = module.container_instance
 
   source      = "./modules/cdn_frontdoor"
+  frontdoor_profile_id = azurerm_cdn_frontdoor_profile.main.id
   app_name    = each.value.container_group_name
-  app_fqdn    = each.value.container_group_fqdn
+  app_fqdn    = coalesce(each.value.container_group_fqdn, each.value.container_group_ip_address)
   resource_group_name   = var.resource_group_name
   tags                  = local.tags
 }
-
 
 
 
