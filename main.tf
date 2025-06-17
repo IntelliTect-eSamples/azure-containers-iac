@@ -1,8 +1,8 @@
 locals {
-  project     = var.project_name
-  environment = var.environment_name
-  location    = var.region_name
-  region      = var.region_name
+  project           = var.project_name
+  environment       = var.environment_name
+  location          = var.region_name
+  region            = var.region_name
   mysql_server_name = var.mysql_server_name
 
   name        = trim(join("", [local.project, "-", local.environment]), "-")
@@ -13,7 +13,7 @@ locals {
   app_domain                     = "ktea.com"
   vnet_address_cidr              = "10.0.0.0/16"
   vnet_address_cidr_range        = "10.0.0.0/16"
-  storage_account_sas_starttime  = timestamp() 
+  storage_account_sas_starttime  = timestamp()
   storage_account_sas_expirytime = "2099-12-31T00:00:00Z"
 
   network_whitelist = [
@@ -46,8 +46,8 @@ locals {
       name      = "mysqldb3"
       charset   = "utf8"
       collation = "utf8_unicode_ci"
-    }  
-  
+    }
+
   ]
 
   tags = {
@@ -60,18 +60,18 @@ locals {
     {
       app_name = "ktsite1"
       app_path = "c:/dev/webapp"
-      db_name = "mysqldb1"
-      
+      db_name  = "mysqldb1"
+
     },
     {
       app_name = "ktsite2"
       app_path = "c:/dev/webapp"
-      db_name = "mysqldb2"
+      db_name  = "mysqldb2"
     }
   ]
 
-  container_app  = {
-    name = "ktsite3"
+  container_app = {
+    name     = "ktsite3"
     app_path = "c:/dev/webapp"
   }
 }
@@ -93,7 +93,7 @@ resource "azurerm_container_registry" "main" {
   admin_enabled       = true
 
   identity {
-    type = "UserAssigned"
+    type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.main.id]
   }
 
@@ -116,17 +116,17 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 # create a mysql flexible server
 module "mysql_flexible_server" {
-  source              = "./modules/mysql-flexible-server"
-  name                = local.mysql_server_fullname
-  resource_group_name = var.resource_group_name
-  region = var.region_name
-  tags = local.tags
-  mysql_administrator_login = var.mysql_administrator_login
+  source                       = "./modules/mysql-flexible-server"
+  name                         = local.mysql_server_fullname
+  resource_group_name          = var.resource_group_name
+  region                       = var.region_name
+  tags                         = local.tags
+  mysql_administrator_login    = var.mysql_administrator_login
   mysql_administrator_password = var.mysql_administrator_password
-  mysql_sku_name      = var.mysql_sku_name
-  mysql_sku_version   = var.mysql_sku_version
-  network_whitelist   = local.network_whitelist
-  databases           = local.databases
+  mysql_sku_name               = var.mysql_sku_name
+  mysql_sku_version            = var.mysql_sku_version
+  network_whitelist            = local.network_whitelist
+  databases                    = local.databases
 }
 
 
@@ -171,44 +171,60 @@ resource "azurerm_storage_container" "craft" {
   container_access_type = "private"
 }
 
+# create an azure file share for container app storage
+resource "azurerm_storage_share" "containerapp" {
+  name                 = "containerapp-files"
+  storage_account_id = azurerm_storage_account.main.id  
+  quota                = 5
+}
+
 # create a container app environment
 resource "azurerm_container_app_environment" "main" {
-  name                = "${local.name_nodash}-app-env"
-  resource_group_name = var.resource_group_name
-  location            = var.region_name
+  name                       = "${local.name_nodash}-app-env"
+  resource_group_name        = var.resource_group_name
+  location                   = var.region_name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
-
 
   tags = local.tags
 }
 
+# create container app environment storage
+resource "azurerm_container_app_environment_storage" "main" {
+  name                         = "azurefiles"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  account_name                 = azurerm_storage_account.main.name
+  access_key                   = azurerm_storage_account.main.primary_access_key
+  share_name                   = azurerm_storage_share.containerapp.name
+  access_mode                  = "ReadWrite"
+}
+
 # create a container app
 resource "azurerm_container_app" "main" {
-  name                = "${local.name_nodash}-containerapp"
-  resource_group_name = var.resource_group_name
+  name                         = "${local.name_nodash}-containerapp"
+  resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
 
   revision_mode = "Single"
 
   ingress {
-    external_enabled = true
+    external_enabled           = true
     allow_insecure_connections = true
-    target_port = 80
-    transport = "auto"
+    target_port                = 80
+    transport                  = "auto"
     traffic_weight {
       latest_revision = true
-      percentage = 100
+      percentage      = 100
     }
   }
 
   registry {
-    server   = azurerm_container_registry.main.login_server
-    username = azurerm_container_registry.main.name
+    server               = azurerm_container_registry.main.login_server
+    username             = azurerm_container_registry.main.name
     password_secret_name = "admin-password"
   }
 
   secret {
-    name = "admin-password"
+    name  = "admin-password"
     value = azurerm_container_registry.main.admin_password
   }
 
@@ -218,8 +234,18 @@ resource "azurerm_container_app" "main" {
       image  = "${azurerm_container_registry.main.login_server}/${local.container_app.name}:latest"
       cpu    = "0.5"
       memory = "1.0Gi"
+
+      volume_mounts {
+        name = "appfiles"
+        path = "/mnt/storage"
+      }
     }
 
+    volume {
+      name         = "appfiles"
+      storage_name = azurerm_container_app_environment_storage.main.name
+      storage_type = "AzureFile"
+    }
   }
 
   tags = local.tags
