@@ -277,6 +277,8 @@ module "cdn_frontdoor_webapp" {
   app_name    = each.value.container_group_name
   app_fqdn    = coalesce(each.value.container_group_fqdn, each.value.container_group_ip_address)
   resource_group_name   = var.resource_group_name
+  supported_protocols = ["Http"]
+  https_redirect_enabled = false
   tags                  = local.tags
 }
 

@@ -2,7 +2,9 @@ resource "azurerm_container_group" "main" {
   name                = "${var.app_name}-aci"
   location            = var.region_name
   resource_group_name = var.resource_group_name
+  dns_name_label      = var.app_name
   os_type             = "Linux"
+  ip_address_type     = "Public"
 
   image_registry_credential {
     server   = var.container_registry_server
@@ -32,7 +34,7 @@ resource "azurerm_container_group" "main" {
 
   diagnostics {
     log_analytics {
-      workspace_id = var.log_analytics_workspace_id
+      workspace_id  = var.log_analytics_workspace_id
       workspace_key = var.log_analytics_workspace_key
     }
   }

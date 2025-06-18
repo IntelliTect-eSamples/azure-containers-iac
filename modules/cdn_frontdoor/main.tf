@@ -29,6 +29,7 @@ resource "azurerm_cdn_frontdoor_route" "main" {
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.main.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.main.id
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.main.id]
-  supported_protocols           = ["Http", "Https"]
+  supported_protocols           = var.supported_protocols
+  https_redirect_enabled = var.https_redirect_enabled
   patterns_to_match             = ["/*"]
 }
